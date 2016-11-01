@@ -37,7 +37,12 @@ class HomeController: UICollectionViewController, UICollectionViewDelegateFlowLa
     }()
     
     var videos: [Video]?
-  
+    
+    lazy var settingsLauncher: SettingsLauncher = {
+       let launcher = SettingsLauncher()
+        launcher.homeController = self
+        return launcher
+    }()
     
     //MARK:- View functions
     override func viewDidLoad() {
@@ -45,11 +50,11 @@ class HomeController: UICollectionViewController, UICollectionViewDelegateFlowLa
         
         fetchVideos()
         
-        navigationItem.title = "Home"
+        
         navigationController?.navigationBar.isTranslucent = false
         
         let titleLabel = UILabel(frame: CGRect(x: 0, y: 0, width: view.frame.width - 32, height: view.frame.height))
-        titleLabel.text = "Home"
+        titleLabel.text = "  Home"
         titleLabel.textColor = UIColor.white
         titleLabel.font = UIFont.systemFont(ofSize: 20)
         navigationItem.titleView = titleLabel
@@ -68,49 +73,14 @@ class HomeController: UICollectionViewController, UICollectionViewDelegateFlowLa
     // MARK:- Custom functions
     
     func fetchVideos() {
-        let url = URL(string: "https://s3-us-west-2.amazonaws.com/youtubeassets/home.json")
-        URLSession.shared.dataTask(with: url!) { (data, response, error) in
+        
+        ApiService.sharedInstance.fetchVideos { (videos: [Video]) in
             
-            if error != nil {
-                print("There was a problem while fetching the json results: \(error.debugDescription)")
-                return
-            } else {
-                
-                do {
-                    
-                let json =  try JSONSerialization.jsonObject(with: data!, options: .mutableContainers)
-                    
-                    //print(json)
-                    self.videos = [Video]()
-                    
-                    for dictionary in json as! [[String:Any]] {
-                    
-                        let video = Video()
-                        video.title = dictionary["title"] as? String
-                        video.thumbnailImageName = dictionary["thumbnail_image_name"] as? String
-                        
-                        let channelDictionary = dictionary["channel"] as! [String:Any]
-                        
-                        let channel = Channel()
-                        channel.name = channelDictionary["name"] as? String
-                        channel.profileImageName = channelDictionary["profile_image_name"] as? String
-                        
-                        video.channel = channel
-                        
-                        self.videos?.append(video)
-                        
-                    }
-                    
-                    self.collectionView?.reloadData()
-                    
-                    
-                } catch let jsonError {
-                    print(jsonError)
-                }
-    
-            }
+            self.videos = videos
+            self.collectionView?.reloadData()
             
-        }.resume()
+        }
+       
     }
     
     func setupNavBarButtons() {
@@ -124,17 +94,38 @@ class HomeController: UICollectionViewController, UICollectionViewDelegateFlowLa
     }
     
     func handleMore() {
-        
+        //show menu  
+       settingsLauncher.showSettings()
     }
     
+    func showControllerForSetting(setting: Setting) {
+        let dummySettingsViewController = UIViewController()
+        dummySettingsViewController.view.backgroundColor = UIColor.white
+        dummySettingsViewController.navigationItem.title = setting.name.rawValue
+        navigationController?.navigationBar.tintColor = UIColor.white
+        navigationController?.navigationBar.titleTextAttributes = [NSForegroundColorAttributeName: UIColor.white]
+        navigationController?.pushViewController(dummySettingsViewController, animated: true)
+    }
+    
+    
     func handleSearch() {
-        
+        //bring the search view
     }
     
     private func setupMenuBar() {
+        
+        navigationController?.hidesBarsOnSwipe = true
+        let redView = UIView()
+        redView.backgroundColor = UIColor.rgb(red: 230, green: 32, blue: 31)
+        view.addSubview(redView)
+        view.addConstraintsWithFormat(format: "H:|[v0]|", views: redView)
+        view.addConstraintsWithFormat(format: "V:[v0(50)]", views: redView)
+        
         view.addSubview(menuBar)
         view.addConstraintsWithFormat(format: "H:|[v0]|", views: menuBar)
-        view.addConstraintsWithFormat(format: "V:|[v0(50)]", views: menuBar)
+        view.addConstraintsWithFormat(format: "V:[v0(50)]", views: menuBar)
+        
+        menuBar.topAnchor.constraint(equalTo: topLayoutGuide.bottomAnchor).isActive = true
         
     }
 
