@@ -31,12 +31,16 @@ class HomeController: UICollectionViewController, UICollectionViewDelegateFlowLa
 //        return [blankSpaceVideo, badBloodVideo]
 //    }()
 
-    let menuBar: MenuBar = {
+    lazy var menuBar: MenuBar = {
         let mb = MenuBar()
+        mb.homeController = self
         return mb
     }()
     
-    var videos: [Video]?
+    let titles = ["Home", "Trending", "Subscriptions", "Account"]
+    let cellId = "cellId"
+    let trendingCellId = "trendingCellId"
+    let subscriptionCellId = "subscriptionCellId"
     
     lazy var settingsLauncher: SettingsLauncher = {
        let launcher = SettingsLauncher()
@@ -47,9 +51,7 @@ class HomeController: UICollectionViewController, UICollectionViewDelegateFlowLa
     //MARK:- View functions
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        fetchVideos()
-        
+
         
         navigationController?.navigationBar.isTranslucent = false
         
@@ -59,29 +61,32 @@ class HomeController: UICollectionViewController, UICollectionViewDelegateFlowLa
         titleLabel.font = UIFont.systemFont(ofSize: 20)
         navigationItem.titleView = titleLabel
         
-        
-        collectionView?.backgroundColor = UIColor.white
-        collectionView?.register(VideoCell.self, forCellWithReuseIdentifier: "cellId")
-        
-        collectionView?.contentInset = UIEdgeInsetsMake(50, 0, 0, 0)
-        collectionView?.scrollIndicatorInsets = UIEdgeInsetsMake(50, 0, 0, 0)
-        
+        setupCollectionView()
         setupMenuBar()
         setupNavBarButtons()
     }
     
     // MARK:- Custom functions
     
-    func fetchVideos() {
+    func setupCollectionView() {
         
-        ApiService.sharedInstance.fetchVideos { (videos: [Video]) in
-            
-            self.videos = videos
-            self.collectionView?.reloadData()
-            
+        if let flowLayout = collectionView?.collectionViewLayout as? UICollectionViewFlowLayout {
+            flowLayout.scrollDirection = .horizontal
+            flowLayout.minimumLineSpacing = 0
         }
-       
+        
+        collectionView?.isPagingEnabled =  true
+        
+        collectionView?.backgroundColor = UIColor.white
+
+        collectionView?.register(FeedCell.self, forCellWithReuseIdentifier: cellId)
+        collectionView?.register(TrendingCell.self, forCellWithReuseIdentifier: trendingCellId)
+        collectionView?.register(SubscriptionCell.self, forCellWithReuseIdentifier: subscriptionCellId)
+        
+        collectionView?.contentInset = UIEdgeInsetsMake(50, 0, 0, 0)
+        collectionView?.scrollIndicatorInsets = UIEdgeInsetsMake(50, 0, 0, 0)
     }
+    
     
     func setupNavBarButtons() {
         let searchImage = UIImage(named: "search_icon")?.withRenderingMode(.alwaysOriginal)
@@ -112,6 +117,20 @@ class HomeController: UICollectionViewController, UICollectionViewDelegateFlowLa
         //bring the search view
     }
     
+    func scrollToMenuIndex(menuIndex: Int) {
+        let indexPath = IndexPath(item: menuIndex, section: 0)
+        
+        collectionView?.scrollToItem(at: indexPath, at: [], animated: true)
+        
+        setTitleFor(index: menuIndex)
+    }
+    
+    private func setTitleFor(index:Int) {
+        if let titleLabel = navigationItem.titleView as? UILabel {
+            titleLabel.text = "  \(titles[index])"
+        }
+    }
+    
     private func setupMenuBar() {
         
         navigationController?.hidesBarsOnSwipe = true
@@ -128,31 +147,52 @@ class HomeController: UICollectionViewController, UICollectionViewDelegateFlowLa
         menuBar.topAnchor.constraint(equalTo: topLayoutGuide.bottomAnchor).isActive = true
         
     }
-
-    //MARK:- CollectionView functions
-    override func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+    
+    
+    //MARK:- ScrollView functions
+    override func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
         
-       return videos?.count ?? 0
+        //print(targetContentOffset.pointee.x / view.frame.width)
+        let index = targetContentOffset.pointee.x / view.frame.width
+        let indexPath = IndexPath(item: Int(index), section: 0)
+        
+        menuBar.collectionView.selectItem(at: indexPath, animated: true, scrollPosition: [])
+        
+          setTitleFor(index: Int(index))
     }
-
-
+    
+    override func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        menuBar.horizontalBarLeftAnchorConstraint?.constant = scrollView.contentOffset.x / 4
+    }
+   
+    //MARK:- CollectionView functions
+   
+    
+    override func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return 4
+    }
+    
     override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "cellId", for: indexPath) as! VideoCell
         
-        cell.video = videos?[indexPath.item]
+        let identifier: String
+        
+        if indexPath.item == 1 {
+            identifier = trendingCellId
+        } else if indexPath.item == 2 {
+            identifier = subscriptionCellId
+        } else {
+            identifier = cellId
+        }
+        
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: identifier, for: indexPath)
         
         return cell
     }
- 
+    
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        let height = (view.frame.width - 16 - 16) * 9 / 16
-        return CGSize(width: view.frame.width, height: height + 16 + 88)
-        
+        return CGSize(width: view.frame.width, height: view.frame.height - 50)
     }
-    
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumLineSpacingForSectionAt section: Int) -> CGFloat {
-        return 0
-    }
-    
+
+
 }
 
